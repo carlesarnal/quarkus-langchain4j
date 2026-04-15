@@ -1,5 +1,6 @@
 package io.quarkiverse.langchain4j.anthropic.runtime;
 
+import static dev.langchain4j.model.chat.request.ResponseFormat.JSON;
 import static io.quarkiverse.langchain4j.runtime.OptionalUtil.firstOrDefault;
 
 import java.time.Duration;
@@ -23,6 +24,7 @@ import dev.langchain4j.model.chat.DisabledChatModel;
 import dev.langchain4j.model.chat.DisabledStreamingChatModel;
 import dev.langchain4j.model.chat.StreamingChatModel;
 import dev.langchain4j.model.chat.listener.ChatModelListener;
+import dev.langchain4j.model.chat.request.ResponseFormat;
 import io.quarkiverse.langchain4j.anthropic.QuarkusAnthropicClient;
 import io.quarkiverse.langchain4j.anthropic.runtime.config.ChatModelConfig;
 import io.quarkiverse.langchain4j.anthropic.runtime.config.LangChain4jAnthropicConfig;
@@ -84,6 +86,16 @@ public class AnthropicRecorder {
 
             if (chatModelConfig.stopSequences().isPresent()) {
                 builder.stopSequences(chatModelConfig.stopSequences().get());
+            }
+
+            if (chatModelConfig.responseFormat().isPresent()) {
+                switch (chatModelConfig.responseFormat().get()) {
+                    case "json" -> builder.responseFormat(JSON);
+                    case "text" -> builder.responseFormat(ResponseFormat.TEXT);
+                    default -> throw new IllegalArgumentException(
+                            "Unknown response format: " + chatModelConfig.responseFormat().get()
+                                    + ", must be one of: [json, text]");
+                }
             }
 
             ChatModelConfig.ThinkingConfig thinkingConfig = chatModelConfig.thinking();
