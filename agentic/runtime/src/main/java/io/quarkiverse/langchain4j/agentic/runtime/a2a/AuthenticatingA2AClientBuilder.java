@@ -1,6 +1,7 @@
 package io.quarkiverse.langchain4j.agentic.runtime.a2a;
 
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -18,18 +19,45 @@ import dev.langchain4j.agentic.scope.AgenticScope;
 
 /**
  * Configures the client of an A2A client agent with an {@link AgentAuthInterceptor}, before the client customizer of
- * the agent, if it has one.
+ * the agent, if it has one, and adds the credentials to the request that fetches the agent's card, next to the agent's
+ * own card headers.
  */
 final class AuthenticatingA2AClientBuilder<T> implements A2AClientBuilder<T> {
 
     private final A2AClientBuilder<T> delegate;
     private final ClientCallInterceptor authInterceptor;
+    private final Supplier<String> cardAuthorization;
+    private final boolean cardHeadersSupported;
     private Consumer<ClientBuilder> clientCustomizer;
+    private Supplier<Map<String, String>> cardHeaders;
 
-    AuthenticatingA2AClientBuilder(A2AClientBuilder<T> delegate, ClientCallInterceptor authInterceptor) {
+    AuthenticatingA2AClientBuilder(A2AClientBuilder<T> delegate, ClientCallInterceptor authInterceptor,
+            Supplier<String> cardAuthorization) {
         this.delegate = delegate;
         this.authInterceptor = authInterceptor;
+        this.cardAuthorization = cardAuthorization;
         delegate.clientCustomizer(new AuthCustomizer());
+        this.cardHeadersSupported = supportsCardHeaders(delegate);
+    }
+
+    // A builder that can't send card headers still gets the credentials on its A2A requests
+    private boolean supportsCardHeaders(A2AClientBuilder<T> builder) {
+        try {
+            builder.agentCardHeaders(this::cardHeaders);
+            return true;
+        } catch (UnsupportedOperationException e) {
+            return false;
+        }
+    }
+
+    private Map<String, String> cardHeaders() {
+        Map<String, String> own = cardHeaders == null ? null : cardHeaders.get();
+        Map<String, String> headers = own == null ? new HashMap<>() : new HashMap<>(own);
+        String authorization = cardAuthorization.get();
+        if (authorization != null) {
+            headers.put("Authorization", authorization);
+        }
+        return headers;
     }
 
     @Override
@@ -61,7 +89,10 @@ final class AuthenticatingA2AClientBuilder<T> implements A2AClientBuilder<T> {
 
     @Override
     public A2AClientBuilder<T> agentCardHeaders(Supplier<Map<String, String>> headers) {
-        delegate.agentCardHeaders(headers);
+        if (!cardHeadersSupported) {
+            delegate.agentCardHeaders(headers);
+        }
+        this.cardHeaders = headers;
         return this;
     }
 

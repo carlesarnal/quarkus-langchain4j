@@ -44,7 +44,7 @@ public final class AuthenticatingA2AService implements A2AService {
     @Override
     public <T> A2AClientBuilder<T> a2aBuilder(String a2aServerUrl, String tenant, Class<T> agentServiceClass) {
         return new AuthenticatingA2AClientBuilder<>(delegate.a2aBuilder(a2aServerUrl, tenant, agentServiceClass),
-                auth.interceptor(a2aServerUrl));
+                auth.interceptor(a2aServerUrl), auth.cardAuthorization(a2aServerUrl));
     }
 
     @Override

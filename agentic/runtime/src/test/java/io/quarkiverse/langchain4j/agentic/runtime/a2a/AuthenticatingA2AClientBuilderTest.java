@@ -2,6 +2,7 @@ package io.quarkiverse.langchain4j.agentic.runtime.a2a;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.time.Duration;
 import java.util.HashMap;
@@ -24,7 +25,7 @@ class AuthenticatingA2AClientBuilderTest {
         RecordingBuilder delegate = new RecordingBuilder();
         Supplier<Map<String, String>> cardHeaders = () -> Map.of("X-Card", "value");
 
-        A2AClientBuilder<Object> builder = new AuthenticatingA2AClientBuilder<>(delegate, null)
+        A2AClientBuilder<Object> builder = new AuthenticatingA2AClientBuilder<>(delegate, null, () -> "Bearer card")
                 .name("remote")
                 .description("A remote agent")
                 .tenant("tenant-1")
@@ -34,9 +35,36 @@ class AuthenticatingA2AClientBuilderTest {
         assertEquals("remote", delegate.calls.get("name"));
         assertEquals("A remote agent", delegate.calls.get("description"));
         assertEquals("tenant-1", delegate.calls.get("tenant"));
-        assertSame(cardHeaders, delegate.calls.get("agentCardHeaders"));
+        assertEquals(Map.of("X-Card", "value", "Authorization", "Bearer card"), delegate.cardHeaders());
         assertEquals(Duration.ofSeconds(5), delegate.calls.get("resolutionTimeout"));
         assertEquals(5, delegate.calls.size() - 1, "only the five options and the auth customizer: " + delegate.calls);
+        assertSame(delegate.built, builder.build());
+    }
+
+    @Test
+    void sendsTheCredentialsOnTheCardRequestWithoutCardHeadersOfItsOwn() {
+        RecordingBuilder delegate = new RecordingBuilder();
+        new AuthenticatingA2AClientBuilder<>(delegate, null, () -> "Bearer card");
+
+        assertEquals(Map.of("Authorization", "Bearer card"), delegate.cardHeaders());
+    }
+
+    @Test
+    void sendsNoCredentialsOnTheCardRequestWhenTheProviderReturnsNone() {
+        RecordingBuilder delegate = new RecordingBuilder();
+        new AuthenticatingA2AClientBuilder<>(delegate, null, () -> null)
+                .agentCardHeaders(() -> Map.of("X-Card", "value"));
+
+        assertEquals(Map.of("X-Card", "value"), delegate.cardHeaders());
+    }
+
+    @Test
+    void keepsWorkingWithABuilderWithoutCardHeaders() {
+        RecordingBuilder delegate = new RecordingBuilder();
+        delegate.cardHeadersSupported = false;
+        A2AClientBuilder<Object> builder = new AuthenticatingA2AClientBuilder<>(delegate, null, () -> "Bearer card");
+
+        assertThrows(UnsupportedOperationException.class, () -> builder.agentCardHeaders(Map::of));
         assertSame(delegate.built, builder.build());
     }
 
@@ -44,6 +72,12 @@ class AuthenticatingA2AClientBuilderTest {
 
         final Map<String, Object> calls = new HashMap<>();
         final Object built = new Object();
+        boolean cardHeadersSupported = true;
+
+        @SuppressWarnings("unchecked")
+        Map<String, String> cardHeaders() {
+            return ((Supplier<Map<String, String>>) calls.get("agentCardHeaders")).get();
+        }
 
         @Override
         public A2AClientBuilder<Object> name(String name) {
@@ -65,6 +99,9 @@ class AuthenticatingA2AClientBuilderTest {
 
         @Override
         public A2AClientBuilder<Object> agentCardHeaders(Supplier<Map<String, String>> headers) {
+            if (!cardHeadersSupported) {
+                throw new UnsupportedOperationException("no card headers");
+            }
             calls.put("agentCardHeaders", headers);
             return this;
         }

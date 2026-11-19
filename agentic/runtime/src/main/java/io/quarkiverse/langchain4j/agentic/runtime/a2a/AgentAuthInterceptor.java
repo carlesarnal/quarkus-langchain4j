@@ -35,6 +35,6 @@ final class AgentAuthInterceptor extends ClientCallInterceptor {
         return new PayloadAndHeaders(payload, withAuthorization);
     }
 
-    private record AgentInput(String agentName, String agentUrl) implements AgentAuthProvider.Input {
+    record AgentInput(String agentName, String agentUrl) implements AgentAuthProvider.Input {
     }
 }

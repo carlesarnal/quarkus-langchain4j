@@ -1,5 +1,7 @@
 package io.quarkiverse.langchain4j.agentic.runtime.a2a;
 
+import java.util.function.Supplier;
+
 import jakarta.enterprise.inject.Instance;
 
 import org.a2aproject.sdk.client.transport.spi.interceptors.ClientCallInterceptor;
@@ -24,5 +26,11 @@ public class A2AAgentAuth {
 
     ClientCallInterceptor interceptor(String agentUrl) {
         return new AgentAuthInterceptor(provider.get(), agentUrl);
+    }
+
+    // The Authorization header value for the request that fetches the agent's card, null for none
+    Supplier<String> cardAuthorization(String agentUrl) {
+        AgentAuthProvider authProvider = provider.get();
+        return () -> authProvider.getAuthorization(new AgentAuthInterceptor.AgentInput(null, agentUrl));
     }
 }

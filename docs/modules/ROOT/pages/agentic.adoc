@@ -1088,6 +1088,10 @@ public class AgentTokens implements AgentAuthProvider {
 <2> Called for every request. `input.agentName()` and `input.agentUrl()` identify the agent, so the provider can choose
 credentials per agent. Returning `null` sends no `Authorization` header.
 
+The same header is sent when the client fetches the agent's Agent Card, so agents that protect their card can be used
+too. That request comes before the card is known, so `input.agentName()` is `null` for it. Card headers that the agent
+sets itself, with `agentCardHeaders` or `@A2AAgentCardHeaders`, are sent as well.
+
 Only one `AgentAuthProvider` bean is supported.
 
 The header is added by an interceptor on the client's JSON-RPC transport. An `@A2AClientCustomizer` method runs after it,
