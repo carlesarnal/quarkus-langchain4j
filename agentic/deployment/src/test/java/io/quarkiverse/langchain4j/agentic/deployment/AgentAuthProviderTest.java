@@ -37,6 +37,9 @@ public class AgentAuthProviderTest {
     public static class TokenPerAgent implements AgentAuthProvider {
         @Override
         public String getAuthorization(Input input) {
+            if (input.agentName() == null) {
+                return "Bearer card-token@" + input.agentUrl();
+            }
             return "Bearer token-for-" + input.agentName() + "@" + input.agentUrl();
         }
     }
@@ -97,6 +100,25 @@ public class AgentAuthProviderTest {
 
         assertThat(remote.invoke(Map.of("input", "hello"))).isEqualTo("pong");
         assertThat(agent.receivedAuthorization()).containsExactly("Bearer token-for-Secured Agent@" + agentUrl());
+    }
+
+    @Test
+    void cardRequestCarriesTheProvidersToken() {
+        agent.receivedCardAuthorization().clear();
+        UntypedAgent remote = AgenticServices.a2aBuilder(agentUrl()).inputKeys("input").build();
+
+        assertThat(remote.invoke(Map.of("input", "hello"))).isEqualTo("pong");
+        assertThat(agent.receivedCardAuthorization()).containsOnly("Bearer card-token@" + agentUrl());
+    }
+
+    @Test
+    void cardRequestCarriesTheProvidersTokenNextToTheAgentsOwnCardHeaders() {
+        agent.receivedCardAuthorization().clear();
+        UntypedAgent remote = AgenticServices.a2aBuilder(agentUrl()).inputKeys("input")
+                .agentCardHeaders(() -> Map.of("X-Request-Source", "test")).build();
+
+        assertThat(remote.invoke(Map.of("input", "hello"))).isEqualTo("pong");
+        assertThat(agent.receivedCardAuthorization()).containsOnly("Bearer card-token@" + agentUrl());
     }
 
     @Test

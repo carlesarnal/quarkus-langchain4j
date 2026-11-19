@@ -10,6 +10,9 @@ package io.quarkiverse.langchain4j.agentic.auth;
  * it refreshes, for example from a Quarkus OIDC client, and it receives the agent each request is for, so it can choose
  * credentials per agent. Only one such bean is supported.
  * <p>
+ * It is also called for the request that fetches the agent's Agent Card, for agents that protect it. That request comes
+ * before the card is known, so its {@link Input#agentName()} is {@code null}.
+ * <p>
  * The credentials are added by a JSON-RPC transport interceptor. A client customizer, such as an
  * {@link dev.langchain4j.agentic.declarative.A2AClientCustomizer} method, runs after it: if the customizer configures
  * the JSON-RPC transport itself, it replaces that interceptor, and then has to add the credentials itself.
@@ -31,7 +34,7 @@ public interface AgentAuthProvider {
     interface Input {
 
         /**
-         * @return the name in the remote agent's Agent Card
+         * @return the name in the remote agent's Agent Card, or {@code null} for the request that fetches the card
          */
         String agentName();
 
